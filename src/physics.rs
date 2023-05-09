@@ -135,16 +135,19 @@ pub fn asteroid_ship_collisions(asteroids: &mut Asteroids, ships: &mut Ships) {
                     SHIP_MASS,
                     SHIP_COEFFICIENT_OF_RESTITUTION,
                 );
-                displace_circles(&ships.triangle[j].circumcircle(), &asteroids.circle[i]);
-                // TODO: Better method of separating triangle and circle.
-                //       Counter-rotate angular velocity? could help separating faster
-                // while triangle_circle_intersect(&ships.triangle[j], &asteroids.circle[i]) {
-                //     asteroids.circle[i].update_position(asteroids.velocity[i], 0.001);
-                //     ships.triangle[j].update_position(ships.velocity[j], 0.001);
-                // }
+
+                let circumcircle = ships.triangle[j].circumcircle();
+                let (new_ship_circumcenter, new_asteroid_center) =
+                    displace_circles(&circumcircle, &asteroids.circle[i]);
+                let asteroid_displacement = new_asteroid_center - asteroids.circle[i].center;
+                let ship_displacement = new_ship_circumcenter - circumcircle.center;
+                while {
+                    asteroids.circle[i].update_position(asteroid_displacement, 0.05);
+                    ships.triangle[j].update_position(ship_displacement, 0.05);
+                    triangle_circle_intersect(&ships.triangle[j], &asteroids.circle[i])
+                } {}
                 asteroids.hp[i] -= 25;
                 ships.hp[j] -= 25;
-
                 // TODO:
                 //       Damage based on velocity/kinetic energy?
                 //ships.exist[j] = ships.hps[j] > 0; // TODO: enable ship destruction, in main.rs, restart game.

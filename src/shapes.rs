@@ -270,9 +270,9 @@ impl Triangle {
     }
 
     fn circumradius(&self) -> f32 {
-        let a = self.v1.magnitude();
-        let b = self.v2.magnitude();
-        let c = self.v3.magnitude();
+        let a = (self.v1 - self.v2).magnitude();
+        let b = (self.v2 - self.v3).magnitude();
+        let c = (self.v3 - self.v1).magnitude();
         let s = (a + b + c) / 2.0;
         let area = (s * (s - a) * (s - b) * (s - c)).sqrt();
         let radius = (a * b * c) / (4.0 * area);

@@ -32,12 +32,12 @@ pub fn triangle_circle_intersect(triangle: &Triangle, circle: &Circle) -> bool {
 pub fn circles_intersect(circle1: Circle, circle2: Circle) -> bool {
     let d = circle1.center - circle2.center;
     let sum_of_radii = circle1.radius + circle2.radius;
-    d.magnitude_squared() <= sum_of_radii * sum_of_radii
+    d.magnitude_squared() < sum_of_radii * sum_of_radii
 }
 
 fn point_in_circle(p: Point, circle: &Circle) -> bool {
     let d = p - circle.center;
-    d.magnitude_squared() <= circle.radius * circle.radius
+    d.magnitude_squared() < circle.radius * circle.radius
 }
 
 fn closest_point_on_line_segment_to_other_point(line_segment: &Line, p: Point) -> Point {
@@ -58,5 +58,5 @@ fn point_in_triangle(triangle: &Triangle, point: Point) -> bool {
     let w1 = (triangle.v1.x * s1 + s4 * s2 - point.x * s1)
         / (s3 * s2 - (triangle.v2.x - triangle.v1.x) * s1);
     let w2 = (s4 - w1 * s3) / s1;
-    w1 >= 0.0 && w2 >= 0.0 && (w1 + w2) <= 1.0
+    w1 > 0.0 && w2 > 0.0 && (w1 + w2) < 1.0
 }
