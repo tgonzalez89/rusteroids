@@ -240,13 +240,12 @@ impl Triangle {
         self.update_position(displacement, 1.0);
     }
 
-    pub fn update_angle(&mut self, delta: f32, dt: f32) {
-        let new_angle = self.angle() + delta * dt;
-        let c = self.centroid();
-        let rotate_vertex_around_centroid = |v: Point| (v - c).rotated(new_angle) + c;
-        self.v1 = rotate_vertex_around_centroid(self.v1);
-        self.v2 = rotate_vertex_around_centroid(self.v2);
-        self.v3 = rotate_vertex_around_centroid(self.v3);
+    pub fn rotate_around_circumcenter(&mut self, delta: f32, dt: f32) {
+        let c = self.circumcenter();
+        let rotate_vertex_around_circumcenter = |v: Point| (v - c).rotated(delta * dt) + c;
+        self.v1 = rotate_vertex_around_circumcenter(self.v1);
+        self.v2 = rotate_vertex_around_circumcenter(self.v2);
+        self.v3 = rotate_vertex_around_circumcenter(self.v3);
     }
 
     pub fn angle(&self) -> f32 {
@@ -261,8 +260,8 @@ impl Triangle {
         (self.v3 - self.v2).perpendicular().normalized()
     }
 
-    pub fn shortest_vertex_to_centroid_distance(&self) -> f32 {
-        let c = self.centroid();
+    pub fn shortest_vertex_to_circumcenter_distance(&self) -> f32 {
+        let c = self.circumcenter();
         let d1 = (c - self.v1).magnitude_squared();
         let d2 = (c - self.v2).magnitude_squared();
         let d3 = (c - self.v3).magnitude_squared();

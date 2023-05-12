@@ -7,7 +7,7 @@ use std::time::Instant;
 
 // -----------------------------------------------------------------------------
 
-const WRAPAROUND_OFFSET_OFFSET: f32 = 0.9;
+const WRAPAROUND_OFFSET_OFFSET: f32 = 1.0;
 
 // -----------------------------------------------------------------------------
 // Asteroid
@@ -317,7 +317,7 @@ impl Ships {
     pub fn accelerator_pressed(&mut self, player: Player) {
         let index = player.to_index();
         self.acceleration[index] = match self.thruster_level[index] {
-            UpgradeLevel::LEVEL1 => SHIP_ACCELERATION_LEVEL3,
+            UpgradeLevel::LEVEL1 => SHIP_ACCELERATION_LEVEL1,
             UpgradeLevel::LEVEL2 => SHIP_ACCELERATION_LEVEL2,
             UpgradeLevel::LEVEL3 => SHIP_ACCELERATION_LEVEL3,
         }
@@ -344,8 +344,8 @@ impl Ships {
                 self.velocity[i] *= SHIP_SPEED_MAX / speed;
             }
             // Update position
-            let wraparound_offset =
-                self.triangle[i].shortest_vertex_to_centroid_distance() * WRAPAROUND_OFFSET_OFFSET;
+            let wraparound_offset = self.triangle[i].shortest_vertex_to_circumcenter_distance()
+                * WRAPAROUND_OFFSET_OFFSET;
             self.triangle[i].update_position_wraparound(
                 self.velocity[i],
                 max_coords,
@@ -378,21 +378,15 @@ impl Ships {
     }
 
     // TODO: re-do with angular acceleration to allow for bouncing, maybe?
-    pub fn rotate(
-        &mut self,
-        index: usize,
-        direction: RotationDirection,
-        dt: f32,
-    ) -> Result<(), ()> {
-        if index < MAX_SHIPS && self.exists[index] {
+    pub fn rotate(&mut self, player: Player, direction: RotationDirection, dt: f32) {
+        let index = player.to_index();
+        if self.exists[index] {
             let angular_velocity = match direction {
-                RotationDirection::COUNTERCLOCKWISE => PI,
-                RotationDirection::CLOCKWISE => -PI,
+                RotationDirection::COUNTERCLOCKWISE => -PI,
+                RotationDirection::CLOCKWISE => PI,
             };
-            self.triangle[index].update_angle(angular_velocity, dt);
-            return Ok(());
+            self.triangle[index].rotate_around_circumcenter(angular_velocity, dt);
         }
-        Err(())
     }
 }
 

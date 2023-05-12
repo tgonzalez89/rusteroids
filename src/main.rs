@@ -70,23 +70,23 @@ pub fn main() {
         let dt_secs = (dt / 1000000000.0) as f32;
 
         // Events
-        // let keyboard = KeyboardState::new(&event_pump);
+        let keyboard = KeyboardState::new(&event_pump);
         // if keyboard.is_scancode_pressed(Scancode::Space) {
         //     if shoot {
         //         ships.shoot(0, &mut bullets).unwrap();
         //         shoot = false;
         //     }
         // }
-        // if keyboard.is_scancode_pressed(Scancode::Left) {
-        //     ships
-        //         .rotate(0, ShipRotateDirection::COUNTERCLOCKWISE, dt_secs)
-        //         .unwrap();
-        // }
-        // if keyboard.is_scancode_pressed(Scancode::Right) {
-        //     ships
-        //         .rotate(0, ShipRotateDirection::CLOCKWISE, dt_secs)
-        //         .unwrap();
-        // }
+        if keyboard.is_scancode_pressed(Scancode::Left) {
+            ships.rotate(
+                Player::PLAYER1,
+                RotationDirection::COUNTERCLOCKWISE,
+                dt_secs,
+            );
+        }
+        if keyboard.is_scancode_pressed(Scancode::Right) {
+            ships.rotate(Player::PLAYER1, RotationDirection::CLOCKWISE, dt_secs);
+        }
         // if keyboard.is_scancode_pressed(Scancode::Up) {
         //     ships.accelerate(0, dt_secs).unwrap();
         // }
