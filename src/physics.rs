@@ -43,8 +43,15 @@ fn displace_circles(circle1: &Circle, circle2: &Circle) -> (Point, Point) {
 fn displace_circle_and_point(c: &Circle, p: Point) -> (Point, Point) {
     let distance = (p - c.center).magnitude();
     let overlap_distance = c.radius - distance;
-    let displacement = overlap_distance * (p - c.center).normalized();
+    let displacement = overlap_distance * (p - c.center).normalized() / 2.0;
     (c.center - displacement, p + displacement)
+}
+
+fn displace_point_from_circle(c: &Circle, p: Point) -> Point {
+    let distance = (p - c.center).magnitude();
+    let overlap_distance = c.radius - distance;
+    let displacement = overlap_distance * (p - c.center).normalized();
+    p + displacement
 }
 
 pub fn asteroid_asteroid_collisions(asteroids: &mut Asteroids) {
@@ -145,9 +152,12 @@ pub fn asteroid_ship_collisions(asteroids: &mut Asteroids, ships: &mut Ships) {
                     SHIP_COEFFICIENT_OF_RESTITUTION,
                 );
 
-                let (new_asteroid_center, new_closest) =
-                    displace_circle_and_point(&asteroids.circle[i], closest);
-                asteroids.circle[i].center = new_asteroid_center;
+                // let (new_asteroid_center, new_closest) =
+                //     displace_circle_and_point(&asteroids.circle[i], closest);
+                // asteroids.circle[i].center = new_asteroid_center;
+                // ships.triangle[j].update_position(new_closest - closest, 1.0);
+
+                let new_closest = displace_point_from_circle(&asteroids.circle[i], closest);
                 ships.triangle[j].update_position(new_closest - closest, 1.0);
 
                 // let circumcircle = ships.triangle[j].circumcircle();
