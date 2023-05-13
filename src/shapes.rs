@@ -233,10 +233,10 @@ impl Triangle {
         wraparound_offset: f32,
         dt: f32,
     ) {
-        let centroid = self.centroid();
-        let mut centroid_updated = centroid;
-        centroid_updated.update_position_wraparound(delta, max_coords, wraparound_offset, dt);
-        let displacement = centroid_updated - centroid;
+        let c = self.circumcenter();
+        let mut c_updated = c;
+        c_updated.update_position_wraparound(delta, max_coords, wraparound_offset, dt);
+        let displacement = c_updated - c;
         self.update_position(displacement, 1.0);
     }
 
@@ -268,7 +268,7 @@ impl Triangle {
         d1.min(d2).min(d3).sqrt()
     }
 
-    fn circumradius(&self) -> f32 {
+    pub fn circumradius(&self) -> f32 {
         let a = (self.v1 - self.v2).magnitude();
         let b = (self.v2 - self.v3).magnitude();
         let c = (self.v3 - self.v1).magnitude();
@@ -278,7 +278,7 @@ impl Triangle {
         radius
     }
 
-    fn circumcenter(&self) -> Point {
+    pub fn circumcenter(&self) -> Point {
         let a = self.v1.x - self.v2.x;
         let b = self.v1.y - self.v2.y;
         let c = self.v1.x - self.v3.x;

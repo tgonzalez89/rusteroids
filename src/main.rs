@@ -70,23 +70,23 @@ pub fn main() {
         let dt_secs = (dt / 1000000000.0) as f32;
 
         // Events
-        let keyboard = KeyboardState::new(&event_pump);
+        // let keyboard = KeyboardState::new(&event_pump);
         // if keyboard.is_scancode_pressed(Scancode::Space) {
         //     if shoot {
         //         ships.shoot(0, &mut bullets).unwrap();
         //         shoot = false;
         //     }
         // }
-        if keyboard.is_scancode_pressed(Scancode::Left) {
-            ships.rotate(
-                Player::PLAYER1,
-                RotationDirection::COUNTERCLOCKWISE,
-                dt_secs,
-            );
-        }
-        if keyboard.is_scancode_pressed(Scancode::Right) {
-            ships.rotate(Player::PLAYER1, RotationDirection::CLOCKWISE, dt_secs);
-        }
+        // if keyboard.is_scancode_pressed(Scancode::Left) {
+        //     ships.rotate(
+        //         Player::PLAYER1,
+        //         RotationDirection::COUNTERCLOCKWISE,
+        //         dt_secs,
+        //     );
+        // }
+        // if keyboard.is_scancode_pressed(Scancode::Right) {
+        //     ships.rotate(Player::PLAYER1, RotationDirection::CLOCKWISE, dt_secs);
+        // }
         // if keyboard.is_scancode_pressed(Scancode::Up) {
         //     ships.accelerate(0, dt_secs).unwrap();
         // }
@@ -123,18 +123,36 @@ pub fn main() {
                     keycode: Some(Keycode::Up),
                     ..
                 } => ships.accelerator_released(Player::PLAYER1),
-                // Event::KeyDown {
-                //     keycode: Some(Keycode::Left),
-                //     ..
-                // } => {
-                //     ships.triangles[0].update_angle(PI, dt_secs);
-                // }
-                // Event::KeyDown {
-                //     keycode: Some(Keycode::Right),
-                //     ..
-                // } => {
-                //     ships.triangles[0].update_angle(-PI, dt_secs);
-                // }
+                Event::KeyDown {
+                    keycode: Some(Keycode::Left),
+                    ..
+                } => {
+                    ships.side_thruster_pressed(
+                        Player::PLAYER1,
+                        RotationDirection::COUNTERCLOCKWISE,
+                    );
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::Right),
+                    ..
+                } => {
+                    ships.side_thruster_pressed(Player::PLAYER1, RotationDirection::CLOCKWISE);
+                }
+                Event::KeyUp {
+                    keycode: Some(Keycode::Left),
+                    ..
+                } => {
+                    ships.side_thruster_released(
+                        Player::PLAYER1,
+                        RotationDirection::COUNTERCLOCKWISE,
+                    );
+                }
+                Event::KeyUp {
+                    keycode: Some(Keycode::Right),
+                    ..
+                } => {
+                    ships.side_thruster_released(Player::PLAYER1, RotationDirection::CLOCKWISE);
+                }
                 _ => {}
             }
         }

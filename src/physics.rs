@@ -142,15 +142,19 @@ pub fn asteroid_ship_collisions(asteroids: &mut Asteroids, ships: &mut Ships) {
             let (collision, closest) =
                 triangle_circle_intersect(&ships.triangle[j], &asteroids.circle[i]);
             if collision {
-                (asteroids.velocity[i], ships.velocity[j]) = calculate_collision_velocities(
+                let angular_velocity_linear = ships.angular_velocity[j]
+                    * (closest - ships.triangle[j].circumcenter()).perpendicular();
+                let (new_asteroid_velocity, new_ship_velocity) = calculate_collision_velocities(
                     asteroids.velocity[i],
-                    ships.velocity[j],
+                    ships.velocity[j] + angular_velocity_linear,
                     asteroids.circle[i].radius
                         * asteroids.circle[i].radius
                         * asteroids.circle[i].radius,
                     SHIP_MASS,
                     SHIP_COEFFICIENT_OF_RESTITUTION,
                 );
+                asteroids.velocity[i] = new_asteroid_velocity;
+                ships.velocity[j] = new_ship_velocity;
 
                 // let (new_asteroid_center, new_closest) =
                 //     displace_circle_and_point(&asteroids.circle[i], closest);

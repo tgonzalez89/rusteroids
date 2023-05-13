@@ -205,10 +205,11 @@ const SHIP_SPEED_MAX: f32 = 100.0;
 const SHIP_ACCELERATION_LEVEL1: f32 = 10.0;
 const SHIP_ACCELERATION_LEVEL2: f32 = 20.0;
 const SHIP_ACCELERATION_LEVEL3: f32 = 40.0;
-const SHIP_DEACCELERATION: f32 = -2.5;
-// const SHIP_ANGULAR_VELOCITY_LEVEL1: f32 = PI / 360.0;
-// const SHIP_ANGULAR_VELOCITY_LEVEL2: f32 = PI / 180.0;
-// const SHIP_ANGULAR_VELOCITY_LEVEL3: f32 = PI / 90.0;
+const SHIP_DEACCELERATION: f32 = 2.5;
+const SHIP_MAX_ANGULAR_VELOCITY: f32 = PI * 2.0;
+const SHIP_ANGULAR_ACCELERATION_LEVEL1: f32 = PI * 1.0;
+const SHIP_ANGULAR_ACCELERATION_LEVEL2: f32 = PI * 2.0;
+const SHIP_ANGULAR_ACCELERATION_LEVEL3: f32 = PI * 4.0;
 const SHIP_GUN_FIRE_RATE_NS_LEVEL1: u128 = 500000000;
 const SHIP_GUN_FIRE_RATE_NS_LEVEL2: u128 = 333333333;
 const SHIP_GUN_FIRE_RATE_NS_LEVEL3: u128 = 250000000;
@@ -227,8 +228,11 @@ pub struct Ships {
     pub triangle: [Triangle; MAX_SHIPS],
     pub velocity: [Point; MAX_SHIPS],
     acceleration: [f32; MAX_SHIPS],
-    pub thruster_level: [UpgradeLevel; MAX_SHIPS],
-    angular_velocity: [f32; MAX_SHIPS],
+    pub back_thruster_level: [UpgradeLevel; MAX_SHIPS],
+    pub angular_velocity: [f32; MAX_SHIPS],
+    angular_acceleration: [f32; MAX_SHIPS],
+    pub side_thrusters_level: [UpgradeLevel; MAX_SHIPS],
+    side_thruster_pressed: [[bool; 2]; MAX_SHIPS],
     pub gun_level: [UpgradeLevel; MAX_SHIPS],
     pub gun_auto: [bool; MAX_SHIPS],
     gun_trigger_pressed: [bool; MAX_SHIPS],
@@ -253,8 +257,11 @@ impl Default for Ships {
             triangle: [Default::default(); MAX_SHIPS],
             velocity: [Default::default(); MAX_SHIPS],
             acceleration: [Default::default(); MAX_SHIPS],
-            thruster_level: [Default::default(); MAX_SHIPS],
+            back_thruster_level: [Default::default(); MAX_SHIPS],
             angular_velocity: [Default::default(); MAX_SHIPS],
+            angular_acceleration: [Default::default(); MAX_SHIPS],
+            side_thrusters_level: [Default::default(); MAX_SHIPS],
+            side_thruster_pressed: [Default::default(); MAX_SHIPS],
             gun_level: [Default::default(); MAX_SHIPS],
             gun_last_fired_t: [Instant::now(); MAX_SHIPS],
             gun_trigger_pressed: [Default::default(); MAX_SHIPS],
@@ -268,6 +275,12 @@ impl Default for Ships {
 pub enum RotationDirection {
     COUNTERCLOCKWISE,
     CLOCKWISE,
+}
+
+impl RotationDirection {
+    pub fn to_index(&self) -> usize {
+        *self as usize
+    }
 }
 
 impl Ships {
@@ -287,7 +300,7 @@ impl Ships {
                 },
                 v3: Point { x: 0.0, y: 0.0 },
             };
-            let delta = position - self.triangle[index].centroid();
+            let delta = position - self.triangle[index].circumcenter();
             self.triangle[index].update_position(delta, 1.0);
             self.velocity[index] = Point { x: 0.0, y: 0.0 };
             self.gun_level[index] = UpgradeLevel::LEVEL1;
@@ -316,7 +329,7 @@ impl Ships {
 
     pub fn accelerator_pressed(&mut self, player: Player) {
         let index = player.to_index();
-        self.acceleration[index] = match self.thruster_level[index] {
+        self.acceleration[index] = match self.back_thruster_level[index] {
             UpgradeLevel::LEVEL1 => SHIP_ACCELERATION_LEVEL1,
             UpgradeLevel::LEVEL2 => SHIP_ACCELERATION_LEVEL2,
             UpgradeLevel::LEVEL3 => SHIP_ACCELERATION_LEVEL3,
@@ -328,14 +341,62 @@ impl Ships {
         self.acceleration[index] = 0.0;
     }
 
+    pub fn side_thruster_pressed(&mut self, player: Player, direction: RotationDirection) {
+        let index = player.to_index();
+        let dir_index = direction.to_index();
+        if !self.side_thruster_pressed[index][dir_index] {
+            self.angular_acceleration[index] += match self.side_thrusters_level[index] {
+                UpgradeLevel::LEVEL1 => SHIP_ANGULAR_ACCELERATION_LEVEL1,
+                UpgradeLevel::LEVEL2 => SHIP_ANGULAR_ACCELERATION_LEVEL2,
+                UpgradeLevel::LEVEL3 => SHIP_ANGULAR_ACCELERATION_LEVEL3,
+            } * match direction {
+                RotationDirection::COUNTERCLOCKWISE => -1.0,
+                RotationDirection::CLOCKWISE => 1.0,
+            };
+            self.side_thruster_pressed[index][dir_index] = true;
+        }
+    }
+
+    pub fn side_thruster_released(&mut self, player: Player, direction: RotationDirection) {
+        let index = player.to_index();
+        let dir_index = direction.to_index();
+        self.angular_acceleration[index] -= match self.side_thrusters_level[index] {
+            UpgradeLevel::LEVEL1 => SHIP_ANGULAR_ACCELERATION_LEVEL1,
+            UpgradeLevel::LEVEL2 => SHIP_ANGULAR_ACCELERATION_LEVEL2,
+            UpgradeLevel::LEVEL3 => SHIP_ANGULAR_ACCELERATION_LEVEL3,
+        } * match direction {
+            RotationDirection::COUNTERCLOCKWISE => -1.0,
+            RotationDirection::CLOCKWISE => 1.0,
+        };
+        self.side_thruster_pressed[index][dir_index] = false;
+    }
+
     pub fn update_positions(&mut self, max_coords: Point, dt: f32) {
         for i in 0..MAX_SHIPS {
             if !self.exists[i] {
                 continue;
             }
+            // Update angular velocity
+            if self.angular_acceleration[i] == 0.0 && self.angular_velocity[i] != 0.0 {
+                self.angular_velocity[i] -= self.angular_velocity[i].signum()
+                    * match self.side_thrusters_level[i] {
+                        UpgradeLevel::LEVEL1 => SHIP_ANGULAR_ACCELERATION_LEVEL1,
+                        UpgradeLevel::LEVEL2 => SHIP_ANGULAR_ACCELERATION_LEVEL2,
+                        UpgradeLevel::LEVEL3 => SHIP_ANGULAR_ACCELERATION_LEVEL3,
+                    }
+                    * dt;
+            } else {
+                self.angular_velocity[i] += self.angular_acceleration[i] * dt;
+            }
+            if self.angular_velocity[i].abs() > SHIP_MAX_ANGULAR_VELOCITY {
+                self.angular_velocity[i] =
+                    SHIP_MAX_ANGULAR_VELOCITY * self.angular_velocity[i].signum();
+            }
+            // Update angle
+            self.triangle[i].rotate_around_circumcenter(self.angular_velocity[i], dt);
             // Update velocity
             if self.acceleration[i] == 0.0 && self.velocity[i].magnitude_squared() != 0.0 {
-                self.velocity[i] += self.velocity[i].normalized() * SHIP_DEACCELERATION * dt;
+                self.velocity[i] -= self.velocity[i].normalized() * SHIP_DEACCELERATION * dt;
             } else {
                 self.velocity[i] += self.triangle[i].direction() * self.acceleration[i] * dt;
             }
@@ -344,8 +405,7 @@ impl Ships {
                 self.velocity[i] *= SHIP_SPEED_MAX / speed;
             }
             // Update position
-            let wraparound_offset = self.triangle[i].shortest_vertex_to_circumcenter_distance()
-                * WRAPAROUND_OFFSET_OFFSET;
+            let wraparound_offset = self.triangle[i].circumradius() * WRAPAROUND_OFFSET_OFFSET;
             self.triangle[i].update_position_wraparound(
                 self.velocity[i],
                 max_coords,
@@ -374,18 +434,6 @@ impl Ships {
                 }
                 self.gun_last_fired_t[i] = Instant::now();
             }
-        }
-    }
-
-    // TODO: re-do with angular acceleration to allow for bouncing, maybe?
-    pub fn rotate(&mut self, player: Player, direction: RotationDirection, dt: f32) {
-        let index = player.to_index();
-        if self.exists[index] {
-            let angular_velocity = match direction {
-                RotationDirection::COUNTERCLOCKWISE => -PI,
-                RotationDirection::CLOCKWISE => PI,
-            };
-            self.triangle[index].rotate_around_circumcenter(angular_velocity, dt);
         }
     }
 }

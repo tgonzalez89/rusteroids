@@ -8,38 +8,43 @@ pub fn line_segment_circle_intersect(line_segment: &Line, circle: &Circle) -> (b
 }
 
 pub fn triangle_circle_intersect(triangle: &Triangle, circle: &Circle) -> (bool, Point) {
-    let (intersects, closest) = line_segment_circle_intersect(
+    let (intersects1, closest1) = line_segment_circle_intersect(
         &Line {
             p1: triangle.v1,
             p2: triangle.v2,
         },
         circle,
     );
-    if intersects {
-        return (intersects, closest);
-    }
-    let (intersects, closest) = line_segment_circle_intersect(
+    let (intersects2, closest2) = line_segment_circle_intersect(
         &Line {
             p1: triangle.v2,
             p2: triangle.v3,
         },
         circle,
     );
-    if intersects {
-        return (intersects, closest);
-    }
-    let (intersects, closest) = line_segment_circle_intersect(
+    let (intersects3, closest3) = line_segment_circle_intersect(
         &Line {
             p1: triangle.v3,
             p2: triangle.v1,
         },
         circle,
     );
-    if intersects {
-        return (intersects, closest);
+    let intersects = intersects1 || intersects2 || intersects3 ||
+        // Rare case where the whole circule is inside the triangle
+        point_in_triangle(triangle, circle.center);
+
+    let d1 = (closest1 - circle.center).magnitude_squared();
+    let d2 = (closest2 - circle.center).magnitude_squared();
+    let d3 = (closest3 - circle.center).magnitude_squared();
+    let mut closest = closest1;
+    let mut d_min = d1;
+    if d2 < d_min {
+        closest = closest2;
+        d_min = d2;
     }
-    // Rare case where the whole circule is inside the triangle
-    let intersects = point_in_triangle(triangle, circle.center);
+    if d3 < d_min {
+        closest = closest3;
+    }
     return (intersects, closest);
 }
 
