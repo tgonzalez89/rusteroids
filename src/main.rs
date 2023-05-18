@@ -158,6 +158,14 @@ pub fn main() {
         }
 
         // Update game objects
+        // Game over
+        if ships.none_exist() {
+            level = 0;
+            asteroids.clear();
+            bullets.clear();
+            ships.create(renderer.max_coords / 2.0).unwrap();
+        }
+        // Level cleared
         if asteroids.none_exist() {
             for _ in 0..(STARTING_ASTEROIDS_COUNT + level.min(10)) {
                 asteroids.create_at_border(renderer.max_coords).unwrap();

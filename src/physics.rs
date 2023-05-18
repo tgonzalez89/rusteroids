@@ -1,6 +1,6 @@
 use crate::game_objects::{
-    AsteroidSize, Asteroids, Bullets, Ships, ASTEROID_RADIUS_SMALL, BULLET_DAMAGE, MAX_ASTEROIDS,
-    MAX_BULLETS, MAX_SHIPS, SHIP_MASS,
+    AsteroidSize, Asteroids, Bullets, Ships, ASTEROID_RADIUS_LARGE, ASTEROID_RADIUS_MEDIUM,
+    ASTEROID_RADIUS_SMALL, BULLET_DAMAGE, MAX_ASTEROIDS, MAX_BULLETS, MAX_SHIPS, SHIP_MASS,
 };
 use crate::intersect::{
     circles_intersect, line_segment_circle_intersect, triangle_circle_intersect,
@@ -38,13 +38,6 @@ fn displace_circles(circle1: &Circle, circle2: &Circle) -> (Point, Point) {
         displacement /= distance_between_centers;
     }
     (circle1.center - displacement, circle2.center + displacement)
-}
-
-fn displace_circle_and_point(c: &Circle, p: Point) -> (Point, Point) {
-    let distance = (p - c.center).magnitude();
-    let overlap_distance = c.radius - distance;
-    let displacement = overlap_distance * (p - c.center).normalized() / 2.0;
-    (c.center - displacement, p + displacement)
 }
 
 fn displace_point_from_circle(c: &Circle, p: Point) -> Point {
@@ -109,7 +102,11 @@ pub fn asteroid_bullet_collisions(asteroids: &mut Asteroids, bullets: &mut Bulle
         asteroids.exists[i] = false;
         let velocity1 = asteroids.velocity[i].clone().rotated(-FRAC_PI_8);
         let velocity2 = asteroids.velocity[i].clone().rotated(FRAC_PI_8);
-        let new_radius = asteroids.circle[i].radius / 2.0;
+        let new_radius = if asteroids.circle[i].radius == ASTEROID_RADIUS_LARGE {
+            ASTEROID_RADIUS_MEDIUM
+        } else {
+            ASTEROID_RADIUS_SMALL
+        };
         let (position1, position2) = displace_circles(
             &Circle {
                 radius: new_radius,
@@ -153,33 +150,13 @@ pub fn asteroid_ship_collisions(asteroids: &mut Asteroids, ships: &mut Ships) {
                     SHIP_MASS,
                     SHIP_COEFFICIENT_OF_RESTITUTION,
                 );
+                let ship_v_delta = new_ship_velocity - ships.velocity[j];
                 asteroids.velocity[i] = new_asteroid_velocity;
                 ships.velocity[j] = new_ship_velocity;
-
-                // let (new_asteroid_center, new_closest) =
-                //     displace_circle_and_point(&asteroids.circle[i], closest);
-                // asteroids.circle[i].center = new_asteroid_center;
-                // ships.triangle[j].update_position(new_closest - closest, 1.0);
-
                 let new_closest = displace_point_from_circle(&asteroids.circle[i], closest);
                 ships.triangle[j].update_position(new_closest - closest, 1.0);
-
-                // let circumcircle = ships.triangle[j].circumcircle();
-                // let (new_ship_circumcenter, new_asteroid_center) =
-                //     displace_circles(&circumcircle, &asteroids.circle[i]);
-                // let asteroid_displacement = new_asteroid_center - asteroids.circle[i].center;
-                // let ship_displacement = new_ship_circumcenter - circumcircle.center;
-                // while {
-                //     asteroids.circle[i].update_position(asteroid_displacement, 0.05);
-                //     ships.triangle[j].update_position(ship_displacement, 0.05);
-                //     triangle_circle_intersect(&ships.triangle[j], &asteroids.circle[i])
-                // } {}
-
-                // asteroids.hp[i] -= 25;
-                // ships.hp[j] -= 25;
-                // TODO:
-                //       Damage based on velocity/kinetic energy?
-                //ships.exist[j] = ships.hps[j] > 0; // TODO: enable ship destruction, in main.rs, restart game.
+                ships.hp[j] -= ship_v_delta.magnitude().min(100.0) as i8;
+                ships.exists[j] = ships.hp[j] > 0;
             }
         }
     }

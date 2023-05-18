@@ -14,15 +14,15 @@ const WRAPAROUND_OFFSET_OFFSET: f32 = 1.0;
 // -----------------------------------------------------------------------------
 
 pub const MAX_ASTEROIDS: usize = 52;
-pub const ASTEROID_RADIUS_SMALL: f32 = 1.5;
-const ASTEROID_RADIUS_MEDIUM: f32 = 3.0;
-const ASTEROID_RADIUS_LARGE: f32 = 6.0;
+pub const ASTEROID_RADIUS_SMALL: f32 = 2.0;
+pub const ASTEROID_RADIUS_MEDIUM: f32 = 4.0;
+pub const ASTEROID_RADIUS_LARGE: f32 = 6.0;
 const ASTEROID_MIN_SPEED: f32 = 10.0;
 pub const ASTEROID_MAX_SPEED_LOWER_LIMIT: f32 = 20.0;
 pub const ASTEROID_MAX_SPEED_HIGHER_LIMIT: f32 = 40.0;
 const ASTEROID_HEALTH_SMALL: i8 = 25;
 const ASTEROID_HEALTH_MEDIUM: i8 = 50;
-const ASTEROID_HEALTH_LARGE: i8 = 100;
+const ASTEROID_HEALTH_LARGE: i8 = 75;
 
 pub struct Asteroids {
     pub exists: [bool; MAX_ASTEROIDS],
@@ -136,6 +136,10 @@ impl Asteroids {
     pub fn none_exist(&self) -> bool {
         !self.exists.iter().any(|&e| e)
     }
+
+    pub fn clear(&mut self) {
+        self.exists.iter_mut().for_each(|e| *e = false)
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -164,6 +168,10 @@ impl Default for Bullets {
 }
 
 impl Bullets {
+    pub fn clear(&mut self) {
+        self.exists.iter_mut().for_each(|e| *e = false)
+    }
+
     pub fn create(&mut self, position: Point, angle: f32) -> Result<usize, String> {
         // Create it in the fist position where exists is false
         if let Some(index) = self.exists.iter().position(|&e| !e) {
@@ -202,17 +210,17 @@ const SHIP_WIDTH: f32 = 4.0;
 const SHIP_LENGTH: f32 = 5.0;
 pub const SHIP_MASS: f32 = 0.5;
 const SHIP_SPEED_MAX: f32 = 100.0;
-const SHIP_ACCELERATION_LEVEL1: f32 = 10.0;
-const SHIP_ACCELERATION_LEVEL2: f32 = 20.0;
-const SHIP_ACCELERATION_LEVEL3: f32 = 40.0;
+const SHIP_ACCELERATION_LEVEL1: f32 = 15.0;
+const SHIP_ACCELERATION_LEVEL2: f32 = 30.0;
+const SHIP_ACCELERATION_LEVEL3: f32 = 45.0;
 const SHIP_DEACCELERATION: f32 = 2.5;
-const SHIP_MAX_ANGULAR_VELOCITY: f32 = PI * 2.0;
-const SHIP_ANGULAR_ACCELERATION_LEVEL1: f32 = PI * 1.0;
-const SHIP_ANGULAR_ACCELERATION_LEVEL2: f32 = PI * 2.0;
-const SHIP_ANGULAR_ACCELERATION_LEVEL3: f32 = PI * 4.0;
-const SHIP_GUN_FIRE_RATE_NS_LEVEL1: u128 = 500000000;
-const SHIP_GUN_FIRE_RATE_NS_LEVEL2: u128 = 333333333;
-const SHIP_GUN_FIRE_RATE_NS_LEVEL3: u128 = 250000000;
+const SHIP_MAX_ANGULAR_VELOCITY: f32 = PI * 1.5;
+const SHIP_ANGULAR_ACCELERATION_LEVEL1: f32 = PI * 8.0;
+const SHIP_ANGULAR_ACCELERATION_LEVEL2: f32 = PI * 8.0;
+const SHIP_ANGULAR_ACCELERATION_LEVEL3: f32 = PI * 8.0;
+const SHIP_GUN_FIRE_RATE_NS_LEVEL1: u128 = 400000000;
+const SHIP_GUN_FIRE_RATE_NS_LEVEL2: u128 = 300000000;
+const SHIP_GUN_FIRE_RATE_NS_LEVEL3: u128 = 200000000;
 
 #[derive(Copy, Clone, Default)]
 pub enum UpgradeLevel {
@@ -238,16 +246,10 @@ pub struct Ships {
     gun_trigger_pressed: [bool; MAX_SHIPS],
     gun_trigger_released: [bool; MAX_SHIPS],
     gun_last_fired_t: [Instant; MAX_SHIPS],
-    //pub accelerations: [Point; MAX_SHIPS],
-    // angular acceleration?
-    // thruster level: 1, 2, 3 (modifies acceleration, how much?)
-    // angular thrusters level: 1, 2, 3 (modifies angular velocity)
-    // weapon level: 1, 2, 3 (rate of fire is increased by lvl) (25 dmg), ends at edge. bullets -> add velocity to current ship's velocity?
     // laser? dmg 25 per [unit of time], ends at edge. rate of heating (fast), rate of cooling (slow), rate of cooling after overheating (slower)
     // bomb? -> radius? damage -> 100, ends at edge. replenish rate (slow). speed (slower than bullet)?
     // shield -> hp? replenish rate? deplenish rate?
 }
-// slow down ship (air resistance)?
 
 impl Default for Ships {
     fn default() -> Self {
@@ -284,6 +286,10 @@ impl RotationDirection {
 }
 
 impl Ships {
+    pub fn none_exist(&self) -> bool {
+        !self.exists.iter().any(|&e| e)
+    }
+
     pub fn create(&mut self, position: Point) -> Result<usize, String> {
         // Create it in the fist position where exists is false
         if let Some(index) = self.exists.iter().position(|&e| !e) {
@@ -303,10 +309,17 @@ impl Ships {
             let delta = position - self.triangle[index].circumcenter();
             self.triangle[index].update_position(delta, 1.0);
             self.velocity[index] = Point { x: 0.0, y: 0.0 };
+            self.acceleration[index] = 0.0;
+            self.back_thruster_level[index] = UpgradeLevel::LEVEL1;
+            self.angular_velocity[index] = 0.0;
+            self.angular_acceleration[index] = 0.0;
+            self.side_thrusters_level[index] = UpgradeLevel::LEVEL1;
+            self.side_thruster_pressed[index] = [false, false];
             self.gun_level[index] = UpgradeLevel::LEVEL1;
             self.gun_last_fired_t[index] = Instant::now();
             self.gun_trigger_pressed[index] = false;
             self.gun_trigger_released[index] = true;
+            self.gun_auto[index] = false;
             Ok(index)
         } else {
             Err("No space left to create ship.".to_string())
@@ -369,6 +382,9 @@ impl Ships {
             RotationDirection::CLOCKWISE => 1.0,
         };
         self.side_thruster_pressed[index][dir_index] = false;
+        if self.side_thruster_pressed[index].iter().all(|&x| !x) {
+            self.angular_acceleration[index] = 0.0;
+        }
     }
 
     pub fn update_positions(&mut self, max_coords: Point, dt: f32) {
@@ -378,6 +394,7 @@ impl Ships {
             }
             // Update angular velocity
             if self.angular_acceleration[i] == 0.0 && self.angular_velocity[i] != 0.0 {
+                let prev_signum = self.angular_velocity[i].signum();
                 self.angular_velocity[i] -= self.angular_velocity[i].signum()
                     * match self.side_thrusters_level[i] {
                         UpgradeLevel::LEVEL1 => SHIP_ANGULAR_ACCELERATION_LEVEL1,
@@ -385,6 +402,9 @@ impl Ships {
                         UpgradeLevel::LEVEL3 => SHIP_ANGULAR_ACCELERATION_LEVEL3,
                     }
                     * dt;
+                if prev_signum != self.angular_velocity[i].signum() {
+                    self.angular_velocity[i] = 0.0;
+                }
             } else {
                 self.angular_velocity[i] += self.angular_acceleration[i] * dt;
             }
